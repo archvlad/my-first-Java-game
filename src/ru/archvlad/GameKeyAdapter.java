@@ -3,22 +3,21 @@ package ru.archvlad;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
-class GameKeyAdapter extends KeyAdapter{
-	
+public class GameKeyAdapter extends KeyAdapter{
 	public void keyPressed(KeyEvent e) {
 		System.out.println("KeyPressed()");
 		int xin = e.getKeyCode();
 		if (xin == e.VK_LEFT) {
-			Player.x -= Player.speed;
+			GamePanel.p.setX(GamePanel.p.getX() - GamePanel.p.getSpeed());
 		}
 		if (xin == e.VK_RIGHT) {
-			Player.x += Player.speed;
+			GamePanel.p.setX(GamePanel.p.getX() + GamePanel.p.getSpeed());
 		}
 		if (xin == e.VK_UP) {
-			Player.y -= Player.speed;
+			GamePanel.p.setY(GamePanel.p.getY() - GamePanel.p.getSpeed());
 		}
 		if (xin == e.VK_DOWN) {
-			Player.y += Player.speed;
+			GamePanel.p.setY(GamePanel.p.getY() + GamePanel.p.getSpeed());
 		}
 	}
 }

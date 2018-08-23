@@ -11,9 +11,9 @@ public class Player {
 	
     Image spritePlayer;
 	
-	public static int x = 0;
-	public static int y = 0;
-	public static int speed = 8;
+	private int x = 0;
+	private int y = 0;
+	private int speed = 8;
 	
 	public Player() {
 		try {
@@ -41,6 +41,22 @@ public class Player {
 			y = 0;
 		}
 		return y;
+	}
+
+	public void setX(int x) {
+		this.x = x;
+	}
+
+	public int getSpeed() {
+		return speed;
+	}
+
+	public void setSpeed(int speed) {
+		this.speed = speed;
+	}
+
+	public void setY(int y) {
+		this.y = y;
 	}
 	
 }

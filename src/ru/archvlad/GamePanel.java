@@ -16,7 +16,7 @@ class GamePanel extends JPanel implements ActionListener{
 	
 	Timer timer = new Timer(25, this);
 	
-	Player p = new Player();
+	public static Player p = new Player();
 	
 	Image spriteBackground;
 	
