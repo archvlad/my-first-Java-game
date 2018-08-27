@@ -12,6 +12,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
+import java.util.TimerTask;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -51,31 +52,32 @@ class GameFrame extends JFrame {
 
 class GamePanel extends JPanel implements ActionListener {
 
-	Timer timer = new Timer(25, this);
+	Timer timer1 = new Timer(25, this);
 
-	public boolean trigger = false;
-	
 	public static PointLocation pointLocation = new PointLocation();
 	public static StatusPanel statusPanel = new StatusPanel();
 	public static GameBackground gameBackground = new GameBackground();
+	public static Player player = new Player();
+	public static Enemy enemy = new Enemy();
 
 	public GamePanel() {
 		setFocusable(true);
 		requestFocus();
-		timer.start();
+		timer1.start();
 	}
 
 	public void paintComponent(Graphics g) {
+		// Отрисовка заднего фона
 		for (int i = 0; i < 2; i++) {
 			gameBackground.paint(g, i);
 			gameBackground.moveBackground();
-			Player.score++;
 		}
-		
+
 		statusPanel.paint(g);
-		pointLocation.collided();
-		pointLocation.player.paint(g);	
-		pointLocation.enemy.paint(g);	
+		// Проверка на столкновение игрока и врага
+		pointLocation.collided(enemy, player);
+		player.paint(g);
+		enemy.paint(g, player);
 	}
 
 	@Override
@@ -91,19 +93,19 @@ class GameKeyAdapter extends KeyAdapter {
 		int xin = e.getKeyCode();
 
 		if (xin == e.VK_LEFT) {
-			GamePanel.pointLocation.player.setX(GamePanel.pointLocation.player.getX() - GamePanel.pointLocation.player.getSpeed());
+			GamePanel.player.setX(GamePanel.player.getX() - GamePanel.player.getSpeed());
 		}
 
 		if (xin == e.VK_RIGHT) {
-			GamePanel.pointLocation.player.setX(GamePanel.pointLocation.player.getX() + GamePanel.pointLocation.player.getSpeed());
+			GamePanel.player.setX(GamePanel.player.getX() + GamePanel.player.getSpeed());
 		}
 
 		if (xin == e.VK_UP) {
-			GamePanel.pointLocation.player.setY(GamePanel.pointLocation.player.getY() - GamePanel.pointLocation.player.getSpeed());
+			GamePanel.player.setY(GamePanel.player.getY() - GamePanel.player.getSpeed());
 		}
 
 		if (xin == e.VK_DOWN) {
-			GamePanel.pointLocation.player.setY(GamePanel.pointLocation.player.getY() + GamePanel.pointLocation.player.getSpeed());
+			GamePanel.player.setY(GamePanel.player.getY() + GamePanel.player.getSpeed());
 		}
 	}
 
@@ -113,14 +115,23 @@ class StatusPanel {
 
 	public void paint(Graphics g) {
 		// Верхняя панелька
-		g.setColor(new Color(236, 240, 241));
+		g.setColor(Color.ORANGE);
 		g.fillRect(0, 0, 640, 64);
+		g.setColor(Color.YELLOW);
+		g.fillRect(5, 5, 200, 54);
+		g.fillRect(210, 5, 200, 54);
+		g.setColor(Color.RED);
+
+		int sWidth = 25;
+		for (int i = 0; i < Player.lives; i++) {
+			g.fillOval(380 - sWidth * i, 23, 20, 20);
+		}
 
 		// Текст состояния игрока
 		g.setColor(new Color(1, 50, 67));
 		g.setFont(new Font("Comic Sans MS", 1, 24));
-		g.drawString("Очки: " + String.valueOf(Player.score), 8, 30);
-		g.drawString("Жизни: " + String.valueOf(Player.lives), 200, 30);
+		g.drawString("Очки: " + String.valueOf(Player.score), 10, 40);
+		g.drawString("Жизни: " + String.valueOf(Player.lives), 215, 40);
 	}
 
 }
@@ -131,6 +142,7 @@ class GameBackground {
 
 	public int d = 0;
 	public int d2 = 640;
+	public int speed = 2;
 
 	public GameBackground() {
 		try {
@@ -148,31 +160,44 @@ class GameBackground {
 		if (d < -640) {
 			d = 0;
 		}
-		
-		d -= 4;
+
+		d -= speed;
 	}
 
 }
 
 class PointLocation {
-	
-	Player player = new Player();
-	Enemy enemy = new Enemy();
-	
-	public boolean trigger = false;
-	
-	public void collided() {
-		if ((player.getX() > enemy.getX() - 64) && (player.getX() < enemy.getX() + 64)
-				&& (player.getY() > enemy.getY() - 64) && (player.getY() < enemy.getY() + 64)) {
+
+	public static boolean trigger = false;
+
+	public void collided(Enemy enemy, Player player) {
+		if (CollisionToEnemy(enemy, player)) {
 			if (!trigger) {
 				Player.lives--;
 				trigger = true;
-			}	
+			}
 		} else {
 			trigger = false;
 		}
 	}
-	
+
+	public static boolean CollisionToEnemy(Enemy enemy, Player player) {
+		if ((player.getX() > enemy.getX() - 64) && (player.getX() < enemy.getX() + 64)
+				&& (player.getY() > enemy.getY() - 64) && (player.getY() < enemy.getY() + 64)) {
+			return true;
+		}
+		return false;
+	}
+
+}
+
+class MyTask extends TimerTask {
+
+	@Override
+	public void run() {
+
+	}
+
 }
 
 class Player {
@@ -184,7 +209,7 @@ class Player {
 
 	private int x = 0;
 	private int y = 0;
-	private int speed = 8;
+	private int speed = 64;
 
 	public Player() {
 		try {
@@ -192,10 +217,6 @@ class Player {
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, "Файл img/imageAnt.png не найден");
 		}
-	}
-	
-	public void collided() {
-		
 	}
 
 	public void paint(Graphics g) {
@@ -242,30 +263,69 @@ class Player {
 
 class Enemy {
 
+	Image[] enemyBang = new Image[7];
+
 	public Image spriteEnemy;
+
+	private int index = 0;
 
 	private int y;
 	private int x = 704;
 	private int speed = 6;
 
+	boolean triggers = false;
+
 	public Enemy() {
-		setY((int) (64 + Math.random() * 512));
+		getRandomY();
 
 		try {
 			spriteEnemy = ImageIO.read(new File("img/imageLiquid.png"));
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, "Файл img/imageLiquid.png не найден");
 		}
+
+		enemyBang[0] = null;
+		for (int i = 1; i < 7; i++) {
+			try {
+				enemyBang[i] = ImageIO.read(new File("img/Animation/imageLiquidBang" + i + ".png"));
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(null, "Файл img/Animation/imageLiquidBang.png не найден");
+			}
+		}
 	}
 
-	public void paint(Graphics g) {
+	public void getRandomY() {
+		do {
+			y = (int) (64 + Math.random() * 512);
+		} while (!(y % 64 == 0));
+	}
+
+	public void paint(Graphics g, Player p) {
 		if (getX() < -64) {
-			setY((int) (64 + Math.random() * 512));
+			getRandomY();
 			setX(704);
 		}
-		
-		setX(getX() - getSpeed());
-		g.drawImage(spriteEnemy, getX(), getY(), null);
+
+		x = x - speed;
+
+		System.out.println(triggers);
+
+		if (!(PointLocation.CollisionToEnemy(this, p))) {
+			g.drawImage(spriteEnemy, x, y, null);
+		} else {
+			speed = 0;
+			g.drawImage(enemyBang[index], x, y, null);
+			index++;
+			if (index == 6) {
+				speed = 6;
+				x = 704;
+				getRandomY();
+			}
+		}
+
+		if (index > 6) {
+			index = 1;
+		}
 	}
 
 	public int getX() {
