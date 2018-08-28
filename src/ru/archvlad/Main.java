@@ -39,7 +39,7 @@ class GameFrame extends JFrame {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setTitle(title);
 		setBounds(locationX, locationY, sizeWidth, sizeHeight);
-		setResizable(false);
+		setResizable(true);
 		addKeyListener(new GameKeyAdapter());
 		setVisible(true);
 
@@ -53,12 +53,24 @@ class GameFrame extends JFrame {
 class GamePanel extends JPanel implements ActionListener {
 
 	Timer timer1 = new Timer(25, this);
-
+	
 	public static PointLocation pointLocation = new PointLocation();
+	
 	public static StatusPanel statusPanel = new StatusPanel();
+	
 	public static GameBackground gameBackground = new GameBackground();
+	
 	public static Player player = new Player();
-	public static Enemy enemy = new Enemy();
+	
+	public static Enemy enemy1 = new Enemy();
+	public static Enemy enemy2 = new Enemy();
+	public static Enemy enemy3 = new Enemy();
+	
+	public static Bullet bullet = new Bullet();
+	
+	public static Coin coin = new Coin();;
+	
+	public static boolean shoot = false;
 
 	public GamePanel() {
 		setFocusable(true);
@@ -70,14 +82,34 @@ class GamePanel extends JPanel implements ActionListener {
 		// Отрисовка заднего фона
 		for (int i = 0; i < 2; i++) {
 			gameBackground.paint(g, i);
-			gameBackground.moveBackground();
 		}
-
+		
+		//Рисуем игрока и врага
+		player.paint(g);	
+		enemy1.paint(g, player);
+		enemy2.paint(g, player);
+		enemy3.paint(g, player);
+		
+		//Рисуем верхнюю панельку состояния игрока
 		statusPanel.paint(g);
+		
 		// Проверка на столкновение игрока и врага
-		pointLocation.collided(enemy, player);
-		player.paint(g);
-		enemy.paint(g, player);
+		pointLocation.collidedToEnemy(enemy1, player);
+		pointLocation.collidedToEnemy(enemy2, player);
+		pointLocation.collidedToEnemy(enemy3, player);
+		
+		//Провереям можно ли стрелять
+		if (shoot == true) {
+			bullet.paint(g, player);
+			
+			// Проверка на столкновение пули и врага
+			pointLocation.collidedToBullet(enemy1, bullet, coin, g);
+			pointLocation.collidedToBullet(enemy2, bullet, coin, g);
+			pointLocation.collidedToBullet(enemy3, bullet, coin, g);
+			if (bullet.getY() < 64) {
+				shoot = false;
+			}	
+		}
 	}
 
 	@Override
@@ -101,11 +133,15 @@ class GameKeyAdapter extends KeyAdapter {
 		}
 
 		if (xin == e.VK_UP) {
-			GamePanel.player.setY(GamePanel.player.getY() - GamePanel.player.getSpeed());
+			//GamePanel.player.setY(GamePanel.player.getY() - GamePanel.player.getSpeed());
 		}
 
 		if (xin == e.VK_DOWN) {
-			GamePanel.player.setY(GamePanel.player.getY() + GamePanel.player.getSpeed());
+			//GamePanel.player.setY(GamePanel.player.getY() + GamePanel.player.getSpeed());
+		}
+		
+		if (xin == e.VK_SPACE) {
+			GamePanel.shoot = true;
 		}
 	}
 
@@ -118,20 +154,35 @@ class StatusPanel {
 		g.setColor(Color.ORANGE);
 		g.fillRect(0, 0, 640, 64);
 		g.setColor(Color.YELLOW);
-		g.fillRect(5, 5, 200, 54);
-		g.fillRect(210, 5, 200, 54);
+		g.fillRect(5, 5, 210, 54);
+		g.fillRect(220, 5, 205, 26);
+		g.fillRect(220, 33, 205, 26);
+		g.fillRect(430, 5, 205, 54);
+		
 		g.setColor(Color.RED);
-
-		int sWidth = 25;
+		int sWidth = 23;
+		int sY = 0;
 		for (int i = 0; i < Player.lives; i++) {
-			g.fillOval(380 - sWidth * i, 23, 20, 20);
+			sY = 225 + sWidth * i; 
+			g.fillOval(225 + sWidth * i, 37, 18, 18);
+			if (sY > 380) {
+				System.out.println(i);
+				for (int j = 0; i < Player.lives-1; j++) {
+					sY = 225 + sWidth * j; 
+					g.setColor(Color.GREEN);
+					g.fillOval(sY, 37, 18, 18);
+					i++;
+					System.out.println(i);
+				}
+			}
 		}
 
 		// Текст состояния игрока
 		g.setColor(new Color(1, 50, 67));
-		g.setFont(new Font("Comic Sans MS", 1, 24));
-		g.drawString("Очки: " + String.valueOf(Player.score), 10, 40);
-		g.drawString("Жизни: " + String.valueOf(Player.lives), 215, 40);
+		g.setFont(new Font("Comic Sans MS", 1, 32));
+		g.drawString("Очки: " + String.valueOf(Player.score), 10, 45);
+		g.setFont(new Font("Comic Sans MS", 1, 20));
+		g.drawString("Жизни: " + String.valueOf(Player.getLives()), 225, 27);
 	}
 
 }
@@ -153,49 +204,63 @@ class GameBackground {
 	}
 
 	public void paint(Graphics g, int i) {
-		g.drawImage(spriteBackground, 640 * i + d, 0, 640, 640, null);
-	}
-
-	public void moveBackground() {
-		if (d < -640) {
+		g.drawImage(spriteBackground, 0, 640 * -i + d, 640, 640, null);
+		d += speed;
+		if (d > 640) {
 			d = 0;
 		}
-
-		d -= speed;
 	}
 
 }
 
 class PointLocation {
 
-	public static boolean trigger = false;
+	public static boolean trigger1 = false;
+	public static boolean trigger2 = false;
 
-	public void collided(Enemy enemy, Player player) {
-		if (CollisionToEnemy(enemy, player)) {
-			if (!trigger) {
+	public void collidedToEnemy(Enemy e, Player p) {
+		if (CollisionToEnemy(e, p)) {
+			if (!trigger1) {
+				e.setY(0);
+				e.getRandomX();
 				Player.lives--;
-				trigger = true;
+				Player.score -= 2;
+				trigger1 = true;
 			}
 		} else {
-			trigger = false;
+			trigger1 = false;
+		}
+	}
+	
+	public void collidedToBullet(Enemy e, Bullet b, Coin c, Graphics g) {
+		if (CollisionToBullet(e, b)) {
+			if (!trigger2) {
+				b.setX(-100);
+				b.setY(-100);
+				e.setY(0);
+				e.getRandomX();
+				Player.score++;
+				trigger2 = true;
+			}
+		} else {
+			trigger2 = false;
 		}
 	}
 
-	public static boolean CollisionToEnemy(Enemy enemy, Player player) {
-		if ((player.getX() > enemy.getX() - 64) && (player.getX() < enemy.getX() + 64)
-				&& (player.getY() > enemy.getY() - 64) && (player.getY() < enemy.getY() + 64)) {
+	public static boolean CollisionToEnemy(Enemy e, Player p) {
+		if ((p.getX() > e.getX() - 64) && (p.getX() < e.getX() + 64)
+				&& (p.getY() > e.getY() - 64) && (p.getY() < e.getY() + 64)) {
 			return true;
 		}
 		return false;
 	}
-
-}
-
-class MyTask extends TimerTask {
-
-	@Override
-	public void run() {
-
+	
+	public static boolean CollisionToBullet(Enemy e, Bullet b) {
+		if ((b.getX() > e.getX() - 64) && (b.getX() < e.getX() + 64)
+				&& (b.getY() > e.getY() - 64) && (b.getY() < e.getY() + 64)) {
+			return true;
+		}
+		return false;
 	}
 
 }
@@ -205,24 +270,31 @@ class Player {
 	public Image spritePlayer;
 
 	public static int score = 0;
-	public static int lives = 3;
+	public static int lives = 5;
 
 	private int x = 0;
-	private int y = 0;
+	private int y = 576;
 	private int speed = 64;
 
 	public Player() {
 		try {
-			spritePlayer = ImageIO.read(new File("img/imageAnt.png"));
+			spritePlayer = ImageIO.read(new File("img/imageAnt1.png"));
 		} catch (IOException e) {
-			JOptionPane.showMessageDialog(null, "Файл img/imageAnt.png не найден");
+			JOptionPane.showMessageDialog(null, "Файл img/imageAnt1.png не найден");
 		}
 	}
 
 	public void paint(Graphics g) {
 		g.drawImage(spritePlayer, getX(), getY(), null);
 	}
-
+	
+	public static int getLives() {
+		if (lives <= 0) {
+			lives = 0;
+		}
+		return lives;
+	}
+	
 	public void setX(int x) {
 		this.x = x;
 	}
@@ -263,68 +335,37 @@ class Player {
 
 class Enemy {
 
-	Image[] enemyBang = new Image[7];
-
 	public Image spriteEnemy;
 
-	private int index = 0;
-
 	private int y;
-	private int x = 704;
+	private int x = 640;
 	private int speed = 6;
 
 	boolean triggers = false;
 
 	public Enemy() {
-		getRandomY();
+		getRandomX();
 
 		try {
 			spriteEnemy = ImageIO.read(new File("img/imageLiquid.png"));
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, "Файл img/imageLiquid.png не найден");
 		}
-
-		enemyBang[0] = null;
-		for (int i = 1; i < 7; i++) {
-			try {
-				enemyBang[i] = ImageIO.read(new File("img/Animation/imageLiquidBang" + i + ".png"));
-			} catch (IOException e) {
-				JOptionPane.showMessageDialog(null, "Файл img/Animation/imageLiquidBang.png не найден");
-			}
-		}
 	}
 
-	public void getRandomY() {
+	public void getRandomX() {
 		do {
-			y = (int) (64 + Math.random() * 512);
-		} while (!(y % 64 == 0));
+			x = (int) (64 + Math.random() * 576);
+		} while (!(x % 64 == 0));
 	}
 
 	public void paint(Graphics g, Player p) {
-		if (getX() < -64) {
-			getRandomY();
-			setX(704);
-		}
-
-		x = x - speed;
-
-		System.out.println(triggers);
-
-		if (!(PointLocation.CollisionToEnemy(this, p))) {
-			g.drawImage(spriteEnemy, x, y, null);
-		} else {
-			speed = 0;
-			g.drawImage(enemyBang[index], x, y, null);
-			index++;
-			if (index == 6) {
-				speed = 6;
-				x = 704;
-				getRandomY();
-			}
-		}
-
-		if (index > 6) {
-			index = 1;
+		g.drawImage(spriteEnemy, x, y, 64, 64, null);
+		y = y + speed;
+		if (getY() > 640) {
+			Player.score--;
+			getRandomX();
+			setY(-64);
 		}
 	}
 
@@ -352,4 +393,101 @@ class Enemy {
 		this.y = y;
 	}
 
+}
+
+class Bullet {
+	
+	private int y = -100;
+	private int x = -100;
+	private int speed = 32;
+	
+	public Bullet() {
+		
+	}
+	
+	public void paint(Graphics g, Player p) {
+		if (y < 64) {
+			setLocation(p);
+		}
+		g.setColor(Color.BLACK);
+		for (int i = 0; i < 5; i++) {
+			g.fillOval(x, y, 8, 8);
+		}
+		y -= speed;
+	}
+	
+	public void setLocation(Player p) {
+		x = p.getX() + 32 - 4;
+		y = p.getY();
+	}
+	
+	public int getY() {
+		return y;
+	}
+	
+	public void setY(int y) {
+		this.y = y;
+	}
+	
+	public int getX() {
+		return x;
+	}
+	
+	public void setX(int x) {
+		this.x = x;
+	}
+	
+	public int getSpeed() {
+		return speed;
+	}
+	
+	public void setSpeed(int speed) {
+		this.speed = speed;
+	}
+	
+}
+
+class Coin {
+	
+	private int y = 100;
+	private int x = 100;
+	public static int rarity = 1;
+	
+	Image [] coin = new Image[4];
+	
+	public Coin() {
+		coin[0] = null;
+
+		y = (int) (1 + Math.random() * 3);
+		
+		for (int i = 1; i < 4; i++) {
+			try {
+				coin[i] = ImageIO.read(new File("img/imageCoin" + i + ".png"));
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(null, "Файл img/imageCoin не найден");
+			}
+		}
+	}
+	
+	public void paint(Graphics g, Enemy e) {
+		g.drawImage(coin[rarity], e.getX(), e.getY(), null);
+		System.out.println(rarity);
+	}
+	
+	public int getY() {
+		return y;
+	}
+	
+	public void setY(int y) {
+		this.y = y;
+	}
+	
+	public int getX() {
+		return x;
+	}
+	
+	public void setX(int x) {
+		this.x = x;
+	}
+	
 }
