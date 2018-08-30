@@ -1,10 +1,12 @@
 package ru.archvlad;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -12,24 +14,27 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
-import java.util.TimerTask;
 
 import javax.imageio.ImageIO;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.Timer;
+import javax.swing.border.Border;
 
 public class Main {
 
 	public static void main(String[] args) {
-		GameFrame gameFrame = new GameFrame("My Java Game", 646, 675);
+		new GameFrame("My Java Game", 646, 675);
 	}
 
 }
 
 class GameFrame extends JFrame {
 
+	private static final long serialVersionUID = 1L;
+	
 	Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
 	public GameFrame(String title, int sizeWidth, int sizeHeight) {
@@ -39,20 +44,27 @@ class GameFrame extends JFrame {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setTitle(title);
 		setBounds(locationX, locationY, sizeWidth, sizeHeight);
-		setResizable(true);
+		setResizable(false);
+		setFocusable(true);
+		requestFocus();
 		addKeyListener(new GameKeyAdapter());
 		setVisible(true);
 
 		GamePanel gameField = new GamePanel();
 		gameField.setBounds(0, 0, 640, 640);
+		gameField.add(StatusPanel.newGameButton);
 		add(gameField);
 	}
 
 }
 
-class GamePanel extends JPanel implements ActionListener {
+class GamePanel extends JPanel implements ActionListener{
 
-	Timer timer1 = new Timer(25, this);
+	private static final long serialVersionUID = 1L;
+
+	Timer timer1 = new Timer(16, this);
+	
+	boolean running = false;
 	
 	public static PointLocation pointLocation = new PointLocation();
 	
@@ -77,7 +89,7 @@ class GamePanel extends JPanel implements ActionListener {
 		requestFocus();
 		timer1.start();
 	}
-
+	
 	public void paintComponent(Graphics g) {
 		// Отрисовка заднего фона
 		for (int i = 0; i < 2; i++) {
@@ -91,7 +103,7 @@ class GamePanel extends JPanel implements ActionListener {
 		enemy3.paint(g, player);
 		
 		//Рисуем верхнюю панельку состояния игрока
-		statusPanel.paint(g);
+		statusPanel.paint(g, player);
 		
 		// Проверка на столкновение игрока и врага
 		pointLocation.collidedToEnemy(enemy1, player);
@@ -124,32 +136,48 @@ class GameKeyAdapter extends KeyAdapter {
 	public void keyPressed(KeyEvent e) {
 		int xin = e.getKeyCode();
 
-		if (xin == e.VK_LEFT) {
+		if (xin == KeyEvent.VK_LEFT) {
 			GamePanel.player.setX(GamePanel.player.getX() - GamePanel.player.getSpeed());
 		}
 
-		if (xin == e.VK_RIGHT) {
+		if (xin == KeyEvent.VK_RIGHT) {
 			GamePanel.player.setX(GamePanel.player.getX() + GamePanel.player.getSpeed());
 		}
 
-		if (xin == e.VK_UP) {
-			//GamePanel.player.setY(GamePanel.player.getY() - GamePanel.player.getSpeed());
+		if (xin == KeyEvent.VK_UP) {
+			/*if (GamePanel.player.getY() < 0) {
+				GamePanel.player.setY(0);
+			}
+			GamePanel.player.setY(GamePanel.player.getY() - GamePanel.player.getSpeed());*/
 		}
 
-		if (xin == e.VK_DOWN) {
-			//GamePanel.player.setY(GamePanel.player.getY() + GamePanel.player.getSpeed());
+		if (xin == KeyEvent.VK_DOWN) {
+			/*if (GamePanel.player.getY() > 576) {
+				GamePanel.player.setY(576);
+			}
+			GamePanel.player.setY(GamePanel.player.getY() + GamePanel.player.getSpeed());*/
 		}
 		
-		if (xin == e.VK_SPACE) {
+		if (xin == KeyEvent.VK_SPACE) {
 			GamePanel.shoot = true;
 		}
 	}
 
 }
 
-class StatusPanel {
-
-	public void paint(Graphics g) {
+class StatusPanel implements ActionListener  {
+	
+	public static JButton newGameButton = new JButton("New Game");
+	boolean trigger = false;
+	
+	public StatusPanel() {
+		newGameButton.setEnabled(false);
+		newGameButton.addActionListener(this);
+		newGameButton.setBackground(Color.ORANGE);
+		newGameButton.setBounds(435, 10, 195, 44);
+	}
+	
+	public void paint(Graphics g, Player p) {
 		// Верхняя панелька
 		g.setColor(Color.ORANGE);
 		g.fillRect(0, 0, 640, 64);
@@ -159,6 +187,7 @@ class StatusPanel {
 		g.fillRect(220, 33, 205, 26);
 		g.fillRect(430, 5, 205, 54);
 		
+		//Уровень жизни
 		g.setColor(Color.RED);
 		int sWidth = 23;
 		int sY = 0;
@@ -179,10 +208,45 @@ class StatusPanel {
 
 		// Текст состояния игрока
 		g.setColor(new Color(1, 50, 67));
+		//g.setColor(new Color(246, 36, 89));
 		g.setFont(new Font("Comic Sans MS", 1, 32));
 		g.drawString("Очки: " + String.valueOf(Player.score), 10, 45);
 		g.setFont(new Font("Comic Sans MS", 1, 20));
 		g.drawString("Жизни: " + String.valueOf(Player.getLives()), 225, 27);
+		g.setFont(new Font("Comic Sans MS", 1, 32));
+		if (Player.lives == 0) {
+			GamePanel.shoot = false;
+			Player.score = 0;
+			p.setSpeed(4);
+			if (p.getY() == 576 && !trigger) {
+				p.setY(p.getY() - 576);
+				trigger = true;
+			}
+			p.setY(p.getY() + 1);
+			try {
+				Player.spritePlayer = ImageIO.read(new File("img/imageEnemySpaceShip.png"));
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(null, "Файл img/imageEnemySpaceShip.png не найден");
+			}
+			newGameButton.setEnabled(true);
+		}
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+			Player.lives = 3;
+			Player.score = 0;
+			GamePanel.player.setSpeed(64);
+			int randomPozition = (int) (Math.random() * 640);
+			GamePanel.player.setX(randomPozition);
+			GamePanel.player.setY(576);
+			try {
+				Player.spritePlayer = ImageIO.read(new File("img/imageSpaceShip.png"));
+			} catch (IOException e1) {
+				JOptionPane.showMessageDialog(null, "Файл img/imageSpaceShip.png не найден");
+			}
+			trigger = false;
+			newGameButton.setEnabled(false);
 	}
 
 }
@@ -267,10 +331,10 @@ class PointLocation {
 
 class Player {
 
-	public Image spritePlayer;
+	public static Image spritePlayer;
 
 	public static int score = 0;
-	public static int lives = 5;
+	public static int lives = 3;
 
 	private int x = 0;
 	private int y = 576;
@@ -278,9 +342,9 @@ class Player {
 
 	public Player() {
 		try {
-			spritePlayer = ImageIO.read(new File("img/imageAnt1.png"));
+			spritePlayer = ImageIO.read(new File("img/imageSpaceShip.png"));
 		} catch (IOException e) {
-			JOptionPane.showMessageDialog(null, "Файл img/imageAnt1.png не найден");
+			JOptionPane.showMessageDialog(null, "Файл img/imageSpaceShip.png не найден");
 		}
 	}
 
@@ -314,12 +378,6 @@ class Player {
 	}
 
 	public int getY() {
-		if (this.y > 576) {
-			y = 576;
-		}
-		if (this.y < 64) {
-			y = 64;
-		}
 		return y;
 	}
 
@@ -339,7 +397,7 @@ class Enemy {
 
 	private int y;
 	private int x = 640;
-	private int speed = 6;
+	private int speed = 4;
 
 	boolean triggers = false;
 
@@ -347,9 +405,9 @@ class Enemy {
 		getRandomX();
 
 		try {
-			spriteEnemy = ImageIO.read(new File("img/imageLiquid.png"));
+			spriteEnemy = ImageIO.read(new File("img/imageEnemySpaceShip.png"));
 		} catch (IOException e) {
-			JOptionPane.showMessageDialog(null, "Файл img/imageLiquid.png не найден");
+			JOptionPane.showMessageDialog(null, "Файл img/imageEnemySpaceShip.png не найден");
 		}
 	}
 
@@ -409,10 +467,8 @@ class Bullet {
 		if (y < 64) {
 			setLocation(p);
 		}
-		g.setColor(Color.BLACK);
-		for (int i = 0; i < 5; i++) {
-			g.fillOval(x, y, 8, 8);
-		}
+		g.setColor(Color.YELLOW);
+		g.fillOval(x, y, 8, 8);
 		y -= speed;
 	}
 	
